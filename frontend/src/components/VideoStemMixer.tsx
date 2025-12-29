@@ -125,14 +125,25 @@ export default function VideoStemMixer({
                 });
 
                 // When user clicks on waveform - sync video and other tracks
+                // Use 'interaction' event to detect actual user clicks vs programmatic seeks
+                let isUserInteracting = false;
+
+                ws.on("interaction", () => {
+                    isUserInteracting = true;
+                });
+
                 ws.on("seeking", () => {
+                    // Only handle user-initiated seeks, not programmatic ones
+                    if (!isUserInteracting) return;
+                    isUserInteracting = false;
+
                     if (isSeeking.current) return;
                     isSeeking.current = true;
 
                     const progress = ws.getCurrentTime() / ws.getDuration();
                     const newTime = ws.getCurrentTime();
 
-                    // Sync video - video's 'seeked' event will reset isSeeking
+                    // Sync video
                     if (videoRef.current) {
                         videoRef.current.currentTime = newTime;
                     }
@@ -145,7 +156,11 @@ export default function VideoStemMixer({
                     });
 
                     setCurrentTime(newTime);
-                    // Note: isSeeking is reset by video's 'seeked' event
+
+                    // Reset seeking flag after short delay
+                    setTimeout(() => {
+                        isSeeking.current = false;
+                    }, 150);
                 });
 
                 wavesurferRefs.current[track.id] = ws;
