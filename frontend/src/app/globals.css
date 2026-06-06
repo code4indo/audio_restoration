@@ -1,29 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  /* AudioGhost Brand Colors */
-  --ghost-primary: #8B5CF6;
-  --ghost-secondary: #06B6D4;
-  --ghost-accent: #F472B6;
-  --ghost-success: #10B981;
-  --ghost-warning: #F59E0B;
-  --ghost-error: #EF4444;
+  /* Audio Archive Restoration - Archival Institution Colors */
+  --ghost-primary: #1E3A5F;
+  /* Deep Archive Blue - professional, trustworthy */
+  --ghost-secondary: #8B7355;
+  /* Warm Document Brown - historical documents */
+  --ghost-accent: #B8860B;
+  /* Muted Archival Gold - valuable artifacts */
+  --ghost-success: #2D5F4F;
+  /* Forest Green - preservation */
+  --ghost-warning: #D4A574;
+  /* Warm Beige - aging documents */
+  --ghost-error: #A63C3C;
+  /* Muted Red - alerting but professional */
 
-  /* Dark Theme */
-  --bg-primary: #0A0A0F;
-  --bg-secondary: #12121A;
-  --bg-tertiary: #1A1A25;
-  --bg-card: #16161F;
-  --bg-hover: #1E1E2A;
+  /* Dark Theme - Professional Archival */
+  --bg-primary: #0F1419;
+  /* Deep charcoal - sophisticated */
+  --bg-secondary: #1A1F2E;
+  /* Dark blue-grey - institutional */
+  --bg-tertiary: #232B3C;
+  /* Muted navy - depth */
+  --bg-card: #1C2330;
+  /* Card background */
+  --bg-hover: #2A3447;
+  /* Hover state */
 
   /* Text Colors */
-  --text-primary: #FFFFFF;
-  --text-secondary: #A1A1AA;
-  --text-muted: #71717A;
+  --text-primary: #E8E9ED;
+  /* Soft white - readable */
+  --text-secondary: #A8B2C1;
+  /* Muted blue-grey */
+  --text-muted: #6B7280;
+  /* Subtle grey */
 
-  /* Glassmorphism */
-  --glass-bg: rgba(22, 22, 31, 0.8);
-  --glass-border: rgba(139, 92, 246, 0.2);
+  /* Glassmorphism - Professional */
+  --glass-bg: rgba(28, 35, 48, 0.85);
+  --glass-border: rgba(184, 134, 11, 0.25);
+  /* Muted gold border */
 }
 
 * {
@@ -44,16 +59,25 @@ body {
 }
 
 body.light-mode {
-  --bg-primary: #FAFAFA;
-  --bg-secondary: #F5F5F5;
-  --bg-tertiary: #EBEBEB;
+  --bg-primary: #F5F3EF;
+  /* Warm off-white - aged paper */
+  --bg-secondary: #EBE8E1;
+  /* Light parchment */
+  --bg-tertiary: #DED9CE;
+  /* Soft beige */
   --bg-card: #FFFFFF;
-  --bg-hover: #F0F0F0;
-  --text-primary: #18181B;
-  --text-secondary: #52525B;
-  --text-muted: #A1A1AA;
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: rgba(139, 92, 246, 0.3);
+  /* Clean white cards */
+  --bg-hover: #E4DFD4;
+  /* Hover - subtle warmth */
+  --text-primary: #1A1F2E;
+  /* Deep blue-grey - readable */
+  --text-secondary: #4A5568;
+  /* Medium grey */
+  --text-muted: #718096;
+  /* Light grey */
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(184, 134, 11, 0.35);
+  /* Visible gold in light mode */
 }
 
 /* Custom Scrollbar */
@@ -94,16 +118,19 @@ body.light-mode {
 
 /* Glow Effects */
 .glow-primary {
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 20px rgba(30, 58, 95, 0.4);
+  /* Deep Archive Blue glow */
 }
 
 .glow-secondary {
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 0 20px rgba(139, 115, 85, 0.4);
+  /* Warm Document Brown glow */
 }
 
 /* Button Styles */
 .btn-primary {
-  background: linear-gradient(135deg, var(--ghost-primary), #7C3AED);
+  background: linear-gradient(135deg, var(--ghost-primary), #2C4A6C);
+  /* Deep archive blue gradient */
   color: white;
   padding: 12px 24px;
   border-radius: 12px;
@@ -118,7 +145,8 @@ body.light-mode {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 25px rgba(30, 58, 95, 0.45);
+  /* Archive blue shadow */
 }
 
 .btn-primary:active {
@@ -184,6 +212,7 @@ body.light-mode {
 .progress-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--ghost-primary), var(--ghost-secondary));
+  /* Blue to brown gradient */
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -193,11 +222,12 @@ body.light-mode {
 
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 20px rgba(30, 58, 95, 0.4);
+    /* Deep Archive Blue */
   }
 
   50% {
-    box-shadow: 0 0 40px rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 40px rgba(30, 58, 95, 0.6);
   }
 }
 
@@ -287,7 +317,8 @@ body.light-mode {
 }
 
 .quick-tag.selected {
-  background: linear-gradient(135deg, var(--ghost-primary), #7C3AED);
+  background: linear-gradient(135deg, var(--ghost-primary), #2C4A6C);
+  /* Archive blue gradient */
   color: white;
   border-color: transparent;
 }
@@ -304,14 +335,17 @@ body.light-mode {
 }
 
 .upload-zone:hover {
-  border-color: var(--ghost-primary);
-  background: rgba(139, 92, 246, 0.05);
+  border-color: var(--ghost-accent);
+  /* Muted gold border */
+  background: rgba(184, 134, 11, 0.06);
+  /* Subtle gold tint */
 }
 
 .upload-zone.dragover {
-  border-color: var(--ghost-primary);
-  background: rgba(139, 92, 246, 0.1);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.2);
+  border-color: var(--ghost-accent);
+  background: rgba(184, 134, 11, 0.12);
+  box-shadow: 0 0 30px rgba(184, 134, 11, 0.25);
+  /* Gold glow */
 }
 
 /* Responsive */

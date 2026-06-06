@@ -1,21 +1,19 @@
 "use client";
 
-import { Sun, Moon, Ghost, User, LogOut } from "lucide-react";
+import { Sun, Moon, Clock, Server } from "lucide-react";
 
 interface HeaderProps {
-    isAuthenticated: boolean;
-    onAuthClick: () => void;
     isDarkMode: boolean;
     onThemeToggle: () => void;
     onLogoClick?: () => void;
+    onHistoryClick?: () => void;
 }
 
 export default function Header({
-    isAuthenticated,
-    onAuthClick,
     isDarkMode,
     onThemeToggle,
-    onLogoClick
+    onLogoClick,
+    onHistoryClick,
 }: HeaderProps) {
     return (
         <header
@@ -51,7 +49,7 @@ export default function Header({
                 >
                     <img
                         src="/audioghost_logo.png"
-                        alt="AudioGhost Logo"
+                        alt="Audio Archive Restoration Logo"
                         style={{
                             width: "40px",
                             height: "40px",
@@ -60,7 +58,7 @@ export default function Header({
                     />
                     <div>
                         <h1 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--text-primary)" }}>
-                            Audio<span className="gradient-text">Ghost</span>
+                            Audio Archive <span className="gradient-text">Restoration</span>
                         </h1>
                         <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             v1.0 MVP
@@ -70,6 +68,30 @@ export default function Header({
 
                 {/* Actions */}
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {/* History Button */}
+                    <button
+                        onClick={onHistoryClick}
+                        style={{
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            background: "var(--bg-tertiary)",
+                            color: "var(--text-secondary)",
+                            border: "none",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontSize: "0.875rem",
+                            transition: "all 0.2s ease"
+                        }}
+                        title="Riwayat Restorasi"
+                        onMouseOver={(e) => { e.currentTarget.style.background = "var(--bg-secondary)"; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = "var(--bg-tertiary)"; }}
+                    >
+                        <Clock style={{ width: "16px", height: "16px" }} />
+                        <span>Riwayat</span>
+                    </button>
+
                     {/* Theme Toggle */}
                     <button
                         onClick={onThemeToggle}
@@ -90,43 +112,50 @@ export default function Header({
                         {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
 
-                    {/* Auth Button */}
-                    {isAuthenticated ? (
+                    {/* Admin Button */}
+                    <a
+                        href="/admin"
+                        style={{
+                            padding: "8px 12px",
+                            borderRadius: "8px",
+                            background: "var(--bg-tertiary)",
+                            color: "var(--text-secondary)",
+                            border: "none",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontSize: "0.875rem",
+                            textDecoration: "none",
+                            transition: "all 0.2s ease"
+                        }}
+                        title="Admin Panel"
+                    >
+                        <Server style={{ width: "16px", height: "16px" }} />
+                        <span>Admin</span>
+                    </a>
+
+                    {/* HuggingFace status - always connected via system token */}
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "8px",
+                            background: "var(--bg-tertiary)"
+                        }}
+                    >
                         <div
                             style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                padding: "8px 16px",
-                                borderRadius: "8px",
-                                background: "var(--bg-tertiary)"
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "50%",
+                                background: "var(--ghost-success)"
                             }}
-                        >
-                            <div
-                                style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    background: "linear-gradient(135deg, var(--ghost-success), var(--ghost-secondary))"
-                                }}
-                            >
-                                <User className="w-4 h-4 text-white" />
-                            </div>
-                            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Connected</span>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={onAuthClick}
-                            className="btn-primary"
-                            style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                        >
-                            <Ghost className="w-4 h-4" />
-                            Connect HuggingFace
-                        </button>
-                    )}
+                        />
+                        <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>HF Connected</span>
+                    </div>
                 </div>
             </div>
         </header>

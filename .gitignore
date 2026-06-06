@@ -90,3 +90,14 @@ CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 .pre-commit-config.yaml
 pyproject.toml
+
+# Additional excludes (Lambda deployment)
+backend/forensic_logs/
+backend/tests/
+*.bak
+*.bak.*
+nohup.out
+start_linux.sh
+stop_linux.sh
+README_LAMBDA.md
+frontend/run-dev.sh

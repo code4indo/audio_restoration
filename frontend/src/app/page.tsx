@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
-import AuthModal from "@/components/AuthModal";
+import HistoryPanel from "@/components/HistoryPanel";
 import AudioUploader from "@/components/AudioUploader";
 import WaveformEditor from "@/components/WaveformEditor";
 import SeparationPanel from "@/components/SeparationPanel";
 import ProgressTracker from "@/components/ProgressTracker";
 import StemMixer from "@/components/StemMixer";
 import VideoStemMixer from "@/components/VideoStemMixer";
+import BatchQueue from "@/components/BatchQueue";
 
 interface TaskResult {
   original_path: string;
@@ -21,23 +22,32 @@ interface TaskResult {
   model_size?: string;
   video_path?: string;
   is_video?: boolean;
+  audio_metadata?: {
+    sample_rate?: number;
+    channels?: number;
+    bit_depth?: number;
+    codec?: string;
+    format?: string;
+    file_size_bytes?: number;
+    original_filename?: string;
+  };
 }
 
 interface TaskState {
   taskId: string | null;
-  status: "idle" | "pending" | "processing" | "completed" | "failed";
+  sourceTaskId: string | null;
+  status: "idle" | "uploading" | "pending" | "processing" | "completed" | "failed";
   progress: number;
   message: string;
   result: TaskResult | null;
 }
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isVideo, setIsVideo] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<{ start: number; end: number } | null>(null);
 
   // Persistent separation settings (won't reset on "New")
@@ -49,31 +59,20 @@ export default function Home() {
 
   const [task, setTask] = useState<TaskState>({
     taskId: null,
+    sourceTaskId: null,
     status: "idle",
     progress: 0,
     message: "",
     result: null,
   });
 
-  // Check auth status on mount
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchProcessing, setBatchProcessing] = useState(false);
 
   // Toggle theme
   useEffect(() => {
     document.body.classList.toggle("light-mode", !isDarkMode);
   }, [isDarkMode]);
-
-  const checkAuthStatus = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/auth/status");
-      const data = await res.json();
-      setIsAuthenticated(data.authenticated);
-    } catch (error) {
-      console.error("Failed to check auth status:", error);
-    }
-  };
 
   const handleFileUpload = (file: File) => {
     setAudioFile(file);
@@ -88,11 +87,81 @@ export default function Home() {
     // Reset task state
     setTask({
       taskId: null,
+      sourceTaskId: null,
       status: "idle",
       progress: 0,
       message: "",
       result: null,
     });
+  };
+
+  const handleRestoreFromHistory = (taskId: string, result: TaskResult) => {
+    // Restore a completed task from history into the main view
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioFile(null);
+    // Use the original output audio as the preview URL
+    setAudioUrl(`/outputs/${taskId}.original.wav`);
+    setIsVideo(!!result.is_video);
+    setSelectedRegion(null);
+    setTask({
+      taskId,
+      sourceTaskId: taskId,
+      status: "completed",
+      progress: 100,
+      message: "",
+      result,
+    });
+  };
+
+  // Submit a new separation using an already-uploaded file on the server
+  const handleReprocess = async (
+    sourceTaskId: string,
+    description: string,
+    mode: "extract" | "remove",
+    modelSize: string,
+    chunkDuration: number,
+    useFloat32: boolean
+  ) => {
+    setTask(prev => ({
+      ...prev,
+      status: "pending",
+      progress: 0,
+      message: "Submitting task...",
+      result: null,
+    }));
+
+    try {
+      const formData = new FormData();
+      formData.append("source_task_id", sourceTaskId);
+      formData.append("description", description);
+      formData.append("mode", mode);
+      formData.append("model_size", modelSize);
+      formData.append("chunk_duration", chunkDuration.toString());
+      formData.append("use_float32", useFloat32.toString());
+
+      const res = await fetch("/api/separate/reprocess", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Reprocess failed");
+
+      setTask({
+        taskId: data.task_id,
+        sourceTaskId,
+        status: "pending",
+        progress: 0,
+        message: "Task submitted...",
+        result: null,
+      });
+      pollTaskStatus(data.task_id, sourceTaskId);
+    } catch (error) {
+      setTask(prev => ({
+        ...prev,
+        status: "failed",
+        message: error instanceof Error ? error.message : "Reprocess failed",
+      }));
+    }
   };
 
   const handleReset = () => {
@@ -106,6 +175,7 @@ export default function Home() {
     setSelectedRegion(null);
     setTask({
       taskId: null,
+      sourceTaskId: null,
       status: "idle",
       progress: 0,
       message: "",
@@ -120,6 +190,11 @@ export default function Home() {
     chunkDuration: number = 25,
     useFloat32: boolean = false
   ) => {
+    // If we have an existing upload on the server, skip re-upload
+    if (task.sourceTaskId) {
+      return handleReprocess(task.sourceTaskId, description, mode, modelSize, chunkDuration, useFloat32);
+    }
+
     if (!audioFile) return;
 
     const formData = new FormData();
@@ -135,43 +210,76 @@ export default function Home() {
       formData.append("end_time", selectedRegion.end.toString());
     }
 
-    try {
-      const res = await fetch("http://localhost:8000/api/separate/", {
-        method: "POST",
-        body: formData,
-      });
+    setTask({
+      taskId: null,
+      sourceTaskId: null,
+      status: "uploading",
+      progress: 0,
+      message: "Uploading file...",
+      result: null,
+    });
 
-      const data = await res.json();
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-      setTask({
-        taskId: data.task_id,
-        status: "pending",
-        progress: 0,
-        message: "Task submitted...",
-        result: null,
-      });
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setTask(prev => ({
+            ...prev,
+            progress: pct,
+            message: `Uploading… ${pct}%`,
+          }));
+        }
+      };
 
-      // Start polling for status
-      pollTaskStatus(data.task_id);
-    } catch (error) {
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            setTask({
+              taskId: data.task_id,
+              sourceTaskId: null,
+              status: "pending",
+              progress: 0,
+              message: "Task submitted...",
+              result: null,
+            });
+            pollTaskStatus(data.task_id, null);
+            resolve();
+          } catch {
+            reject(new Error("Invalid server response"));
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.onabort = () => reject(new Error("Upload aborted"));
+
+      xhr.open("POST", "/api/separate/");
+      xhr.send(formData);
+    }).catch((error) => {
       console.error("Failed to submit separation task:", error);
       setTask(prev => ({
         ...prev,
         status: "failed",
-        message: "Failed to submit task",
+        message: error.message || "Failed to submit task",
       }));
-    }
+    });
   };
 
-  const pollTaskStatus = async (taskId: string) => {
+  const pollTaskStatus = async (taskId: string, sourceTaskId: string | null = null) => {
     const poll = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/tasks/${taskId}`);
+        const res = await fetch(`/api/tasks/${taskId}`);
         const data = await res.json();
 
         setTask({
           taskId,
           status: data.status,
+          sourceTaskId,
           progress: data.progress,
           message: data.message || "",
           result: data.result || null,
@@ -189,6 +297,7 @@ export default function Home() {
   };
 
   return (
+    <>
     <main
       style={{
         minHeight: "100vh",
@@ -197,11 +306,10 @@ export default function Home() {
       }}
     >
       <Header
-        isAuthenticated={isAuthenticated}
-        onAuthClick={() => setShowAuthModal(true)}
         isDarkMode={isDarkMode}
         onThemeToggle={() => setIsDarkMode(!isDarkMode)}
         onLogoClick={handleReset}
+        onHistoryClick={() => setShowHistory(true)}
       />
 
       <div
@@ -212,30 +320,102 @@ export default function Home() {
         }}
       >
         {/* Hero Section */}
-        {!audioUrl && (
+        {!audioUrl && !batchMode && (
           <div style={{ textAlign: "center", marginBottom: "48px" }}>
             <h1 style={{ fontSize: "3rem", fontWeight: 800, marginBottom: "16px" }}>
-              <span className="gradient-text">AudioGhost</span>{" "}
-              <span style={{ color: "var(--text-primary)" }}>AI</span>
+              <span className="gradient-text">Audio Archive</span>{" "}
+              <span style={{ color: "var(--text-primary)" }}>Restoration</span>
             </h1>
             <p style={{ fontSize: "1.25rem", marginBottom: "8px", color: "var(--text-secondary)" }}>
               AI-Powered Object-Oriented Audio Separation
             </p>
             <p style={{ color: "var(--text-muted)" }}>
-              Describe the sound you want to extract or remove using natural language
+              Prioritize common archival needs such as isolating human speech or reducing analog transfer noise like tape hiss, hum, crackle, and static
             </p>
+          </div>
+        )}
+
+        {/* Batch Mode Toggle (shown when no file is loaded) */}
+        {!audioUrl && (
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <button
+              onClick={() => setBatchMode(!batchMode)}
+              style={{
+                padding: "10px 20px",
+                borderRadius: "10px",
+                border: `1px solid ${batchMode ? "var(--ghost-primary)" : "var(--glass-border)"}`,
+                background: batchMode ? "rgba(168, 85, 247, 0.1)" : "var(--bg-secondary)",
+                color: batchMode ? "var(--ghost-primary)" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 500,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="2" width="8" height="8" rx="1" />
+                <rect x="14" y="2" width="8" height="8" rx="1" />
+                <rect x="2" y="14" width="8" height="8" rx="1" />
+                <rect x="14" y="14" width="8" height="8" rx="1" />
+              </svg>
+              {batchMode ? "Exit Batch Mode" : "Batch Processing Mode"}
+            </button>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "12px" }}>
+              Process multiple intents on the same file
+            </span>
+          </div>
+        )}
+
+        {/* Batch Queue Panel */}
+        {batchMode && !audioUrl && (
+          <div style={{ marginBottom: "24px" }}>
+            <BatchQueue
+              onStartBatch={async (items) => {
+                setBatchProcessing(true);
+                for (const item of items) {
+                  try {
+                    const formData = new FormData();
+                    // Use a demo file or prompt user to upload
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "audio/*,video/*";
+                    const file = await new Promise<File>((resolve) => {
+                      input.onchange = () => resolve(input.files![0]);
+                      input.click();
+                    });
+                    formData.append("file", file);
+                    formData.append("description", item.description);
+                    formData.append("mode", item.mode);
+                    formData.append("model_size", "base");
+
+                    const res = await fetch("/api/separate/", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  } catch (e) {
+                    console.error("Batch item failed:", item.filename, e);
+                  }
+                }
+                setBatchProcessing(false);
+              }}
+              processing={batchProcessing}
+            />
           </div>
         )}
 
         {/* Main Content */}
         <div style={{ display: "grid", gap: "24px" }}>
           {/* Upload Zone */}
-          {!audioUrl && (
+          {!audioUrl && !batchMode && (
             <AudioUploader onFileUpload={handleFileUpload} />
           )}
 
-          {/* Waveform Editor (Audio) or Video Preview - Hide when results are shown */}
-          {audioUrl && task.status !== "completed" && (
+          {/* Waveform Editor (Audio) or Video Preview - Hide when results are shown or uploading */}
+          {audioUrl && task.status !== "completed" && task.status !== "uploading" && (
             <>
               {/* Section Header with Upload Button */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -310,16 +490,14 @@ export default function Home() {
           {audioUrl && task.status === "idle" && (
             <SeparationPanel
               onSeparate={handleSeparation}
-              isAuthenticated={isAuthenticated}
-              onAuthRequired={() => setShowAuthModal(true)}
               hasRegion={!!selectedRegion}
               settings={separationSettings}
               onSettingsChange={setSeparationSettings}
             />
           )}
 
-          {/* Progress Tracker */}
-          {(task.status === "pending" || task.status === "processing") && (
+          {/* Progress Tracker — shown during upload and processing */}
+          {(task.status === "uploading" || task.status === "pending" || task.status === "processing") && (
             <ProgressTracker
               status={task.status}
               progress={task.progress}
@@ -336,33 +514,42 @@ export default function Home() {
                 audioDuration={task.result.audio_duration}
                 processingTime={task.result.processing_time}
                 modelSize={task.result.model_size}
+                audioMetadata={task.result.audio_metadata}
                 onUploadNew={handleReset}
                 onNewSeparation={() => {
-                  setTask({
+                  setTask(prev => ({
+                    ...prev,
                     taskId: null,
+                    sourceTaskId: prev.taskId,
                     status: "idle",
                     progress: 0,
                     message: "",
                     result: null,
-                  });
+                  }));
                 }}
               />
             ) : (
               <StemMixer
                 taskId={task.taskId}
-                description={task.result.description}
+                description={task.result.description || task.result.mode || ""}
                 audioDuration={task.result.audio_duration}
                 processingTime={task.result.processing_time}
                 modelSize={task.result.model_size}
+                mode={(task.result.mode as "extract" | "remove") || "extract"}
+                chunkDuration={separationSettings.chunkDuration}
+                useFloat32={separationSettings.useFloat32}
+                audioMetadata={task.result.audio_metadata}
                 onUploadNew={handleReset}
                 onNewSeparation={() => {
-                  setTask({
+                  setTask(prev => ({
+                    ...prev,
                     taskId: null,
+                    sourceTaskId: prev.taskId,
                     status: "idle",
                     progress: 0,
                     message: "",
                     result: null,
-                  });
+                  }));
                 }}
               />
             )
@@ -375,7 +562,7 @@ export default function Home() {
               <p style={{ color: "var(--text-secondary)" }}>{task.message}</p>
               <button
                 className="btn-primary mt-4"
-                onClick={() => setTask({ taskId: null, status: "idle", progress: 0, message: "", result: null })}
+                onClick={() => setTask({ taskId: null, sourceTaskId: null, status: "idle", progress: 0, message: "", result: null })}
               >
                 Try Again
               </button>
@@ -384,16 +571,15 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => {
-            setIsAuthenticated(true);
-            setShowAuthModal(false);
-          }}
+    </main>
+
+      {/* History Drawer */}
+      {showHistory && (
+        <HistoryPanel
+          onClose={() => setShowHistory(false)}
+          onRestore={handleRestoreFromHistory}
         />
       )}
-    </main>
+    </>
   );
 }

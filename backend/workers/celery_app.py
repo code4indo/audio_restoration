@@ -20,5 +20,5 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=3600,  # 1 hour max per task
     worker_prefetch_multiplier=1,  # Process one task at a time (GPU memory)
-    result_expires=86400,  # Results expire after 24 hours
+    result_expires=604800,  # Results expire after 7 days
 )

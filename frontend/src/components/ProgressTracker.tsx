@@ -1,9 +1,9 @@
 "use client";
 
-import { Ghost, Loader2, CheckCircle2 } from "lucide-react";
+import { Ghost, Loader2, CheckCircle2, Upload } from "lucide-react";
 
 interface ProgressTrackerProps {
-    status: "pending" | "processing";
+    status: "uploading" | "pending" | "processing";
     progress: number;
     message: string;
 }
@@ -15,6 +15,8 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
         { step: "Running separation", threshold: 50 },
         { step: "Saving results", threshold: 80 },
     ];
+
+    const isUploading = status === "uploading";
 
     return (
         <div
@@ -35,11 +37,24 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: "linear-gradient(135deg, var(--ghost-primary), var(--ghost-accent))",
-                        boxShadow: "0 8px 32px rgba(168, 85, 247, 0.3)"
+                        background: isUploading
+                            ? "linear-gradient(135deg, var(--ghost-secondary), var(--ghost-accent))"
+                            : "linear-gradient(135deg, var(--ghost-primary), var(--ghost-accent))",
+                        boxShadow: isUploading
+                            ? "0 8px 32px rgba(6, 182, 212, 0.3)"
+                            : "0 8px 32px rgba(168, 85, 247, 0.3)"
                     }}
                 >
-                    {status === "pending" ? (
+                    {isUploading ? (
+                        <Upload
+                            style={{
+                                width: "40px",
+                                height: "40px",
+                                color: "white",
+                                animation: "bounce 1s ease-in-out infinite"
+                            }}
+                        />
+                    ) : status === "pending" ? (
                         <Ghost style={{ width: "40px", height: "40px", color: "white" }} />
                     ) : (
                         <Loader2
@@ -64,7 +79,7 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
                     marginBottom: "8px"
                 }}
             >
-                {status === "pending" ? "Waiting in Queue..." : "Processing Audio..."}
+                {isUploading ? "Uploading File..." : status === "pending" ? "Waiting in Queue..." : "Processing Audio..."}
             </h3>
 
             {/* Message */}
@@ -80,7 +95,7 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
             </p>
 
             {/* Progress Bar */}
-            <div style={{ marginBottom: "32px" }}>
+            <div style={{ marginBottom: isUploading ? "0" : "32px" }}>
                 <div
                     style={{
                         display: "flex",
@@ -89,13 +104,13 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
                     }}
                 >
                     <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                        Progress
+                        {isUploading ? "Upload" : "Progress"}
                     </span>
                     <span
                         style={{
                             fontSize: "0.85rem",
                             fontWeight: 600,
-                            color: "var(--ghost-primary)"
+                            color: isUploading ? "var(--ghost-secondary)" : "var(--ghost-primary)"
                         }}
                     >
                         {progress}%
@@ -113,20 +128,24 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
                         style={{
                             height: "100%",
                             borderRadius: "4px",
-                            background: "linear-gradient(90deg, var(--ghost-primary), var(--ghost-accent))",
+                            background: isUploading
+                                ? "linear-gradient(90deg, var(--ghost-secondary), var(--ghost-accent))"
+                                : "linear-gradient(90deg, var(--ghost-primary), var(--ghost-accent))",
                             width: `${progress}%`,
-                            transition: "width 0.3s ease"
+                            transition: "width 0.2s ease"
                         }}
                     />
                 </div>
             </div>
 
-            {/* Steps */}
+            {/* Steps — only shown during processing phase */}
+            {!isUploading && (
             <div
                 style={{
                     background: "var(--bg-tertiary)",
                     borderRadius: "12px",
-                    padding: "20px"
+                    padding: "20px",
+                    marginTop: "32px"
                 }}
             >
                 {steps.map(({ step, threshold }, index) => {
@@ -204,6 +223,7 @@ export default function ProgressTracker({ status, progress, message }: ProgressT
                     );
                 })}
             </div>
+            )}
         </div>
     );
 }

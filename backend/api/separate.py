@@ -1,6 +1,7 @@
 """
 Separation API - Audio/Video Separation Endpoints
 """
+import json
 import uuid
 from pathlib import Path
 from typing import Optional, List
@@ -9,10 +10,14 @@ from pydantic import BaseModel
 
 from workers.celery_app import celery_app
 from workers.tasks import separate_audio_task
+from logging_utils import get_logger
 
 router = APIRouter()
+logger = get_logger("audioghost.backend.separate", "separate.log")
 
-UPLOAD_DIR = Path("uploads")
+BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+OUTPUT_DIR = BASE_DIR / "outputs"
 
 # Supported MIME types
 AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/x-wav", "audio/flac", "audio/m4a", "audio/aac"]
@@ -81,6 +86,17 @@ async def create_separation_task(
     with open(upload_path, "wb") as f:
         content = await file.read()
         f.write(content)
+
+    logger.info(
+        "Queued separation task | file=%s | content_type=%s | mode=%s | model=%s | is_video=%s | upload_path=%s",
+        file.filename,
+        file.content_type,
+        mode,
+        model_size,
+        is_video,
+        upload_path,
+        extra={"task_id": task_id, "event": "task.queued"},
+    )
     
     # Build anchors for temporal prompting
     anchors = None
@@ -97,7 +113,8 @@ async def create_separation_task(
             model_size,
             chunk_duration,
             use_float32_bool,
-            is_video  # New: flag for video processing
+            is_video,
+            file.filename or "",
         ],
         task_id=task_id
     )
@@ -106,6 +123,84 @@ async def create_separation_task(
         task_id=task_id,
         status="pending",
         message="Task submitted successfully"
+    )
+
+
+@router.post("/reprocess", response_model=SeparationResponse)
+async def reprocess_task(
+    source_task_id: str = Form(...),
+    description: str = Form(...),
+    mode: str = Form("extract"),
+    model_size: str = Form("base"),
+    chunk_duration: float = Form(25.0),
+    use_float32: str = Form("false"),
+):
+    """
+    Re-run separation on an already-uploaded file using a new description/settings.
+    Resolves the original upload path from the source task's meta.json.
+    """
+    # Locate original upload path from saved metadata
+    meta_path = OUTPUT_DIR / f"{source_task_id}.meta.json"
+    if not meta_path.exists():
+        raise HTTPException(status_code=404, detail="Source task not found")
+
+    try:
+        meta = json.loads(meta_path.read_text())
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to read task metadata")
+
+    upload_path = Path(meta.get("upload_path", ""))
+    if not upload_path.exists():
+        # Fallback: scan uploads/ directory for a file matching the source task ID
+        matches = list(UPLOAD_DIR.glob(f"{source_task_id}.*"))
+        if not matches:
+            # Final fallback: use the original output file from the previous task
+            original_output = OUTPUT_DIR / f"{source_task_id}.original.wav"
+            if original_output.exists():
+                upload_path = original_output
+            else:
+                raise HTTPException(status_code=404, detail="Original upload file no longer exists on server")
+        else:
+            upload_path = matches[0]
+
+    chunk_duration = max(5.0, min(60.0, chunk_duration))
+    use_float32_bool = use_float32.lower() == "true"
+
+    file_extension = upload_path.suffix.lower()
+    is_video = file_extension in [".mp4", ".webm", ".mov", ".avi", ".mkv", ".mpeg"]
+
+    original_filename = meta.get("original_filename", upload_path.name)
+
+    task_id = str(uuid.uuid4())
+
+    logger.info(
+        "Queued reprocess task | source_task_id=%s | model=%s | mode=%s | upload_path=%s",
+        source_task_id,
+        model_size,
+        mode,
+        upload_path,
+        extra={"task_id": task_id, "event": "task.requeued"},
+    )
+
+    separate_audio_task.apply_async(
+        args=[
+            str(upload_path),
+            description,
+            mode,
+            None,
+            model_size,
+            chunk_duration,
+            use_float32_bool,
+            is_video,
+            original_filename,
+        ],
+        task_id=task_id,
+    )
+
+    return SeparationResponse(
+        task_id=task_id,
+        status="pending",
+        message="Reprocess task submitted successfully",
     )
 
 

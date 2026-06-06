@@ -7,12 +7,20 @@ import {
     Volume2,
     Sparkles,
     Clock,
-    AlertCircle,
     Cpu,
     Search,
     Sliders,
-    Zap
+    Zap,
+    BookOpen,
+    Radio,
+    Headphones,
+    RadioReceiver,
+    Disc3,
+    Wifi,
+    Tv,
+    ScrollText,
 } from "lucide-react";
+import IntentPreview from "./IntentPreview";
 
 interface SeparationSettings {
     modelSize: "small" | "base" | "large";
@@ -22,8 +30,6 @@ interface SeparationSettings {
 
 interface SeparationPanelProps {
     onSeparate: (description: string, mode: "extract" | "remove", modelSize: string, chunkDuration: number, useFloat32: boolean) => void;
-    isAuthenticated: boolean;
-    onAuthRequired: () => void;
     hasRegion: boolean;
     // Persistent settings from parent
     settings: SeparationSettings;
@@ -31,12 +37,130 @@ interface SeparationPanelProps {
 }
 
 const QUICK_PROMPTS = [
-    { icon: Mic, label: "Voice", prompt: "singing voice", color: "#8B5CF6" },
-    { icon: Music, label: "Music", prompt: "background music", color: "#06B6D4" },
-    { icon: Volume2, label: "Drums", prompt: "drums and percussion", color: "#F472B6" },
-    { icon: Sparkles, label: "Guitar", prompt: "acoustic guitar", color: "#10B981" },
-    { icon: Volume2, label: "Bass", prompt: "bass", color: "#F59E0B" },
-    { icon: Volume2, label: "Piano", prompt: "piano", color: "#EF4444" },
+    { icon: Mic, label: "Speech", prompt: "human speech, spoken voice, talking", color: "#8B5CF6" },
+    { icon: Mic, label: "Interview", prompt: "oral history interview voice, person speaking", color: "#06B6D4" },
+    { icon: Volume2, label: "Tape Hiss", prompt: "tape hiss", color: "#F472B6" },
+    { icon: Sparkles, label: "Crackle", prompt: "vinyl crackle and static noise", color: "#10B981" },
+    { icon: Volume2, label: "Hum", prompt: "electrical hum, buzzing sound", color: "#F59E0B" },
+    { icon: Music, label: "Crowd", prompt: "crowd noise, audience chatter", color: "#EF4444" },
+];
+
+// Restoration Presets — curated intents for archival workflows
+//
+// IMPORTANT: SAM Audio separates audio into TARGET (matches prompt) and RESIDUAL (everything else).
+// - mode="extract" → user wants the TARGET as the isolated output. Prompt should describe what to KEEP.
+// - mode="remove"  → user wants the RESIDUAL as the clean output. Prompt should describe what to DISCARD.
+// NEVER mix "keep X, remove Y" in one prompt — the model will be confused and quality drops.
+//
+const PRESETS = [
+    {
+        id: "speech-enhance",
+        category: "🎤 Speech",
+        label: "Enhance Speech",
+        description: "Extract and enhance human speech, removing all background noise",
+        prompt: "human speech, spoken voice, talking, dialogue",
+        mode: "extract" as const,
+        modelSize: "base",
+        icon: Headphones,
+        color: "#8B5CF6",
+        badge: "Popular",
+    },
+    {
+        id: "tape-hiss",
+        category: "📼 Tape",
+        label: "Remove Tape Hiss",
+        description: "Clean analog tape hiss and steady-state background noise",
+        prompt: "tape hiss, analog tape noise, steady hissing sound",
+        mode: "remove" as const,
+        modelSize: "small",
+        icon: Radio,
+        color: "#F472B6",
+        badge: "Archival",
+    },
+    {
+        id: "vinyl-crackle",
+        category: "💿 Vinyl",
+        label: "Clean Crackle/Pops",
+        description: "Remove vinyl crackle, pops, clicks, and impulse noise",
+        prompt: "vinyl crackle, pops, clicks, and static noise",
+        mode: "remove" as const,
+        modelSize: "small",
+        icon: Disc3,
+        color: "#10B981",
+        badge: "Archival",
+    },
+    {
+        id: "hum-removal",
+        category: "⚡ Electrical",
+        label: "Remove Hum",
+        description: "Eliminate electrical mains hum, buzz, and ground loop noise",
+        prompt: "electrical hum, 50Hz 60Hz buzzing, ground loop noise",
+        mode: "remove" as const,
+        modelSize: "base",
+        icon: Zap,
+        color: "#F59E0B",
+        badge: "Common",
+    },
+    {
+        id: "dialogue-isolate",
+        category: "🎙️ Dialogue",
+        label: "Isolate Dialogue",
+        description: "Extract dialogue from film/TV audio, remove music and effects",
+        prompt: "dialogue, speech, people talking",
+        mode: "extract" as const,
+        modelSize: "large",
+        icon: Tv,
+        color: "#06B6D4",
+        badge: "Advanced",
+    },
+    {
+        id: "ambient-clean",
+        category: "🌿 Ambient",
+        label: "Clean Background",
+        description: "Remove crowd noise, wind, room echo, and environmental sounds",
+        prompt: "crowd noise, wind, ambient room sounds, environmental noise",
+        mode: "remove" as const,
+        modelSize: "base",
+        icon: Wifi,
+        color: "#EF4444",
+        badge: "Common",
+    },
+    {
+        id: "oral-history",
+        category: "📜 Archive",
+        label: "Restore Oral History",
+        description: "Full restoration of archival oral history recordings — extracts clean speech",
+        prompt: "human speech, spoken voice, talking, dialogue, narration",
+        mode: "extract" as const,
+        modelSize: "large",
+        icon: ScrollText,
+        color: "#A855F7",
+        badge: "Archival",
+    },
+    {
+        id: "noise-cleanup",
+        category: "🔇 Noise",
+        label: "Remove All Noise",
+        description: "Remove tape hiss, crackle, hum, and background noise from archival recordings",
+        prompt: "tape hiss, crackle, pops, electrical hum, static noise, background noise",
+        mode: "remove" as const,
+        modelSize: "large",
+        icon: RadioReceiver,
+        color: "#F97316",
+        badge: "Archival",
+    },
+    {
+        id: "music-extract",
+        category: "🎵 Music",
+        label: "Extract Music",
+        description: "Isolate musical instruments and melody from mixed audio",
+        prompt: "music, musical instruments, melody, singing",
+        mode: "extract" as const,
+        modelSize: "large",
+        icon: Music,
+        color: "#EC4899",
+        badge: "Advanced",
+    },
 ];
 
 const MODEL_OPTIONS = [
@@ -47,8 +171,6 @@ const MODEL_OPTIONS = [
 
 export default function SeparationPanel({
     onSeparate,
-    isAuthenticated,
-    onAuthRequired,
     hasRegion,
     settings,
     onSettingsChange
@@ -57,6 +179,8 @@ export default function SeparationPanel({
     const [customPrompt, setCustomPrompt] = useState("");
     const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
     const [mode, setMode] = useState<"extract" | "remove">("extract");
+    const [showPresets, setShowPresets] = useState(false);
+    const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
     // Destructure settings for easier access
     const { modelSize, chunkDuration, useFloat32 } = settings;
@@ -69,14 +193,19 @@ export default function SeparationPanel({
     const handleQuickSelect = (prompt: string) => {
         setSelectedPrompt(prompt);
         setCustomPrompt(prompt);
+        setSelectedPreset(null);
+    };
+
+    const handlePresetSelect = (preset: typeof PRESETS[0]) => {
+        setSelectedPreset(preset.id);
+        setCustomPrompt(preset.prompt);
+        setSelectedPrompt(null);
+        setMode(preset.mode);
+        updateSetting("modelSize", preset.modelSize as "small" | "base" | "large");
+        setShowPresets(false);
     };
 
     const handleSeparate = () => {
-        if (!isAuthenticated) {
-            onAuthRequired();
-            return;
-        }
-
         const prompt = customPrompt || selectedPrompt;
         if (!prompt) return;
 
@@ -134,6 +263,162 @@ export default function SeparationPanel({
             <div style={{ padding: "24px" }}>
 
                 {/* ============================================ */}
+                {/* PRESETS — Quick restoration templates         */}
+                {/* ============================================ */}
+                <div
+                    style={{
+                        marginBottom: "20px",
+                        borderRadius: "12px",
+                        border: `1px solid ${showPresets ? "var(--ghost-primary)" : "var(--glass-border)"}`,
+                        overflow: "hidden",
+                        transition: "border-color 0.2s",
+                    }}
+                >
+                    <button
+                        onClick={() => setShowPresets(!showPresets)}
+                        style={{
+                            width: "100%",
+                            padding: "12px 16px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            background: showPresets ? "rgba(168, 85, 247, 0.08)" : "var(--bg-tertiary)",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "var(--text-primary)",
+                            fontSize: "0.85rem",
+                            fontWeight: 600,
+                            transition: "all 0.2s",
+                        }}
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <BookOpen style={{ width: "16px", height: "16px", color: "var(--ghost-primary)" }} />
+                            <span>Restoration Presets</span>
+                            {selectedPreset && (
+                                <span
+                                    style={{
+                                        fontSize: "0.65rem",
+                                        padding: "2px 8px",
+                                        borderRadius: "8px",
+                                        background: "rgba(168, 85, 247, 0.15)",
+                                        color: "var(--ghost-primary)",
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    {PRESETS.find(p => p.id === selectedPreset)?.label}
+                                </span>
+                            )}
+                        </div>
+                        <span
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--text-muted)",
+                                transform: showPresets ? "rotate(180deg)" : "none",
+                                transition: "transform 0.2s",
+                            }}
+                        >
+                            ▼
+                        </span>
+                    </button>
+
+                    {showPresets && (
+                        <div style={{ padding: "16px" }}>
+                            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.4 }}>
+                                Choose a restoration preset tailored for archival workflows. Each preset configures the optimal prompt, mode, and model size automatically.
+                            </p>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "8px" }}>
+                                {PRESETS.map((preset) => {
+                                    const Icon = preset.icon;
+                                    const isActive = selectedPreset === preset.id;
+                                    return (
+                                        <button
+                                            key={preset.id}
+                                            onClick={() => handlePresetSelect(preset)}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "flex-start",
+                                                gap: "10px",
+                                                padding: "12px",
+                                                borderRadius: "10px",
+                                                border: `1px solid ${isActive ? preset.color : "var(--glass-border)"}`,
+                                                background: isActive ? `${preset.color}10` : "var(--bg-primary)",
+                                                cursor: "pointer",
+                                                textAlign: "left",
+                                                transition: "all 0.2s",
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: "32px",
+                                                    height: "32px",
+                                                    borderRadius: "8px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    background: `${preset.color}20`,
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <Icon style={{ width: "14px", height: "14px", color: preset.color }} />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                                    <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                                        {preset.label}
+                                                    </span>
+                                                    <span
+                                                        style={{
+                                                            fontSize: "0.55rem",
+                                                            padding: "1px 6px",
+                                                            borderRadius: "6px",
+                                                            fontWeight: 600,
+                                                            textTransform: "uppercase",
+                                                            background: isActive ? `${preset.color}30` : "var(--bg-tertiary)",
+                                                            color: isActive ? preset.color : "var(--text-muted)",
+                                                        }}
+                                                    >
+                                                        {preset.badge}
+                                                    </span>
+                                                </div>
+                                                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: "2px", lineHeight: 1.3 }}>
+                                                    {preset.description}
+                                                </div>
+                                                <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
+                                                    <span
+                                                        style={{
+                                                            fontSize: "0.55rem",
+                                                            padding: "1px 5px",
+                                                            borderRadius: "4px",
+                                                            background: isActive ? `${preset.color}20` : "var(--bg-tertiary)",
+                                                            color: isActive ? preset.color : "var(--text-muted)",
+                                                            fontWeight: 600,
+                                                            textTransform: "uppercase",
+                                                        }}
+                                                    >
+                                                        {preset.mode === "extract" ? "Extract" : "Remove"}
+                                                    </span>
+                                                    <span
+                                                        style={{
+                                                            fontSize: "0.55rem",
+                                                            padding: "1px 5px",
+                                                            borderRadius: "4px",
+                                                            background: "var(--bg-tertiary)",
+                                                            color: "var(--text-muted)",
+                                                        }}
+                                                    >
+                                                        {preset.modelSize}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* ============================================ */}
                 {/* MAIN INPUT - Describe the sound (PROMINENT) */}
                 {/* ============================================ */}
                 <div
@@ -155,7 +440,7 @@ export default function SeparationPanel({
                         color: "var(--text-primary)"
                     }}>
                         <Search style={{ width: "16px", height: "16px", color: "var(--ghost-primary)" }} />
-                        Describe the sound you want to {mode}
+                        Describe the archival sound you want to {mode}
                     </label>
                     <input
                         type="text"
@@ -164,7 +449,7 @@ export default function SeparationPanel({
                             setCustomPrompt(e.target.value);
                             setSelectedPrompt(null);
                         }}
-                        placeholder="e.g., singing voice, drums, police siren, crowd noise, a dog barking..."
+                        placeholder="e.g., human speech only, interview voice, tape hiss, vinyl crackle, electrical hum..."
                         style={{
                             width: "100%",
                             padding: "16px 18px",
@@ -214,6 +499,9 @@ export default function SeparationPanel({
                             </button>
                         ))}
                     </div>
+
+                    {/* Intent Preview — shows what the AI understands */}
+                    <IntentPreview description={customPrompt || selectedPrompt || ""} mode={mode} />
                 </div>
 
                 {/* Settings Grid */}
@@ -461,36 +749,6 @@ export default function SeparationPanel({
                         ⚡ Smaller chunks = Less VRAM usage, but slower processing & may affect quality at boundaries
                     </p>
                 </div>
-
-                {/* Auth Warning */}
-                {!isAuthenticated && (
-                    <div
-                        style={{
-                            marginBottom: "16px",
-                            padding: "14px 16px",
-                            borderRadius: "10px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                            background: "rgba(245, 158, 11, 0.1)",
-                            border: "1px solid rgba(245, 158, 11, 0.25)"
-                        }}
-                    >
-                        <AlertCircle style={{
-                            width: "18px",
-                            height: "18px",
-                            flexShrink: 0,
-                            color: "var(--ghost-warning)"
-                        }} />
-                        <p style={{
-                            fontWeight: 500,
-                            fontSize: "0.85rem",
-                            color: "var(--ghost-warning)"
-                        }}>
-                            Connect HuggingFace to continue
-                        </p>
-                    </div>
-                )}
 
                 {/* Action Button */}
                 <button

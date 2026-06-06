@@ -12,6 +12,8 @@ import {
     Leaf,
     SkipBack,
     Film,
+    CircleDot,
+    FileText,
     type LucideIcon
 } from "lucide-react";
 import WaveSurfer from "wavesurfer.js";
@@ -24,10 +26,19 @@ interface VideoStemMixerProps {
     audioDuration?: number;
     processingTime?: number;
     modelSize?: string;
+    audioMetadata?: {
+        sample_rate?: number;
+        channels?: number;
+        bit_depth?: number;
+        codec?: string;
+        format?: string;
+        file_size_bytes?: number;
+        original_filename?: string;
+    };
 }
 
 interface Track {
-    id: "ghost" | "clean";
+    id: "original" | "ghost" | "clean";
     label: string;
     icon: LucideIcon;
     color: string;
@@ -35,6 +46,13 @@ interface Track {
 }
 
 const TRACKS: Track[] = [
+    {
+        id: "original",
+        label: "Original Sound",
+        icon: CircleDot,
+        color: "#F59E0B",
+        waveColor: "#F59E0B"
+    },
     {
         id: "ghost",
         label: "Isolated Sound",
@@ -58,12 +76,14 @@ export default function VideoStemMixer({
     onUploadNew,
     audioDuration,
     processingTime,
-    modelSize
+    modelSize,
+    audioMetadata,
 }: VideoStemMixerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [muted, setMuted] = useState<Record<string, boolean>>({
+        original: false,
         ghost: false,
         clean: false,
     });
@@ -71,6 +91,7 @@ export default function VideoStemMixer({
     const [showVideoDownload, setShowVideoDownload] = useState(false);
     const [isReady, setIsReady] = useState<Record<string, boolean>>({
         video: false,
+        original: false,
         ghost: false,
         clean: false,
     });
@@ -81,22 +102,29 @@ export default function VideoStemMixer({
     const isSeeking = useRef(false);
 
     const getAudioUrl = (trackId: string) => {
-        return `http://localhost:8000/api/tasks/${taskId}/download/${trackId}`;
+        return `/api/tasks/${taskId}/download/${trackId}`;
     };
 
     const getVideoUrl = () => {
-        return `http://localhost:8000/api/tasks/${taskId}/download/video`;
+        return `/api/tasks/${taskId}/download/video`;
     };
 
     // Initialize video and wavesurfers
     useEffect(() => {
+        let isMounted = true;
+
         const initWaveSurfers = async () => {
             for (const track of TRACKS) {
+                if (!isMounted) return;
+
                 const container = containerRefs.current[track.id];
                 if (!container) continue;
 
                 if (wavesurferRefs.current[track.id]) {
-                    wavesurferRefs.current[track.id]?.destroy();
+                    try {
+                        wavesurferRefs.current[track.id]?.unAll();
+                        wavesurferRefs.current[track.id]?.destroy();
+                    } catch { /* ignore */ }
                 }
 
                 const ws = WaveSurfer.create({
@@ -114,9 +142,12 @@ export default function VideoStemMixer({
                     hideScrollbar: true,
                 });
 
-                ws.load(getAudioUrl(track.id));
+                ws.load(getAudioUrl(track.id)).catch(() => {
+                    // Suppress AbortError from WaveSurfer's internal fetch when component unmounts
+                });
 
                 ws.on("ready", () => {
+                    if (!isMounted) return;
                     setIsReady(prev => ({ ...prev, [track.id]: true }));
                     if (track.id === "ghost") {
                         setDuration(ws.getDuration());
@@ -170,14 +201,18 @@ export default function VideoStemMixer({
         initWaveSurfers();
 
         return () => {
+            isMounted = false;
             const refs = { ...wavesurferRefs.current };
-            setTimeout(() => {
-                Object.values(refs).forEach(ws => {
-                    if (ws) {
-                        try { ws.destroy(); } catch { /* ignore */ }
-                    }
-                });
-            }, 0);
+            Object.entries(refs).forEach(([id, ws]) => {
+                if (ws) {
+                    try {
+                        ws.unAll();
+                        ws.pause();
+                        ws.destroy();
+                    } catch { /* ignore */ }
+                }
+            });
+            wavesurferRefs.current = {};
         };
     }, [taskId]);
 
@@ -370,7 +405,7 @@ export default function VideoStemMixer({
 
     const downloadVideoWithAudio = (audioType: "original" | "ghost" | "clean") => {
         const link = document.createElement("a");
-        link.href = `http://localhost:8000/api/tasks/${taskId}/download-video-with-audio/${audioType}`;
+        link.href = `/api/tasks/${taskId}/download-video-with-audio/${audioType}`;
         const labels = { original: "original", ghost: "isolated", clean: "without_isolated" };
         link.download = `${taskId}_${labels[audioType]}_video.mp4`;
         document.body.appendChild(link);
@@ -464,7 +499,7 @@ export default function VideoStemMixer({
                         }}
                     >
                         <RefreshCw style={{ width: "14px", height: "14px" }} />
-                        New
+                        New Prompt
                     </button>
                 </div>
             </div>
@@ -627,11 +662,11 @@ export default function VideoStemMixer({
                         justifyContent: "center",
                         background: isPlaying
                             ? "linear-gradient(135deg, var(--ghost-primary), var(--ghost-accent))"
-                            : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                            : "linear-gradient(135deg, var(--ghost-primary), var(--ghost-secondary))",
                         border: "none",
                         cursor: allReady ? "pointer" : "not-allowed",
                         opacity: allReady ? 1 : 0.5,
-                        boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)"
+                        boxShadow: "0 2px 8px rgba(30, 58, 95, 0.4)"
                     }}
                 >
                     {isPlaying ? (
@@ -669,7 +704,7 @@ export default function VideoStemMixer({
                                 top: 0,
                                 height: "100%",
                                 borderRadius: "2px",
-                                background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                                background: "linear-gradient(90deg, var(--ghost-primary), var(--ghost-secondary))",
                                 width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
                                 transition: "width 0.1s"
                             }}
@@ -687,126 +722,219 @@ export default function VideoStemMixer({
                 </div>
             </div>
 
-            {/* Audio Tracks */}
-            <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                {TRACKS.map((track) => {
-                    const TrackIcon = track.icon;
-                    const isMuted = muted[track.id];
-                    const trackReady = isReady[track.id];
+            {/* Audio Tracks + Metadata Identity */}
+            <div style={{
+                padding: "20px 24px",
+                display: "flex",
+                gap: "20px",
+            }}>
+                {/* Left: Audio Tracks */}
+                <div style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    minWidth: 0,
+                }}>
+                    {TRACKS.map((track) => {
+                        const TrackIcon = track.icon;
+                        const isMuted = muted[track.id];
+                        const trackReady = isReady[track.id];
 
-                    return (
-                        <div
-                            key={track.id}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "12px",
-                                padding: "14px 16px",
-                                borderRadius: "12px",
-                                background: isMuted ? "var(--bg-tertiary)" : `${track.color}08`,
-                                border: `1px solid ${isMuted ? "var(--border-color)" : `${track.color}30`}`,
-                                opacity: isMuted ? 0.6 : 1,
-                                transition: "all 0.2s ease"
-                            }}
-                        >
-                            {/* Mute Button */}
-                            <button
-                                onClick={() => toggleMute(track.id)}
+                        return (
+                            <div
+                                key={track.id}
                                 style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    borderRadius: "8px",
                                     display: "flex",
                                     alignItems: "center",
-                                    justifyContent: "center",
-                                    background: isMuted ? "var(--bg-secondary)" : `${track.color}20`,
-                                    color: isMuted ? "var(--text-muted)" : track.color,
-                                    border: "none",
-                                    cursor: "pointer",
-                                    flexShrink: 0
+                                    gap: "12px",
+                                    padding: "14px 16px",
+                                    borderRadius: "12px",
+                                    background: isMuted ? "var(--bg-tertiary)" : `${track.color}08`,
+                                    border: `1px solid ${isMuted ? "var(--border-color)" : `${track.color}30`}`,
+                                    opacity: isMuted ? 0.6 : 1,
+                                    transition: "all 0.2s ease"
                                 }}
                             >
-                                {isMuted ? (
-                                    <VolumeX style={{ width: "16px", height: "16px" }} />
-                                ) : (
-                                    <Volume2 style={{ width: "16px", height: "16px" }} />
-                                )}
-                            </button>
-
-                            {/* Track Label */}
-                            <div style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "10px",
-                                minWidth: "180px",
-                                flexShrink: 0
-                            }}>
-                                <TrackIcon
+                                {/* Mute Button */}
+                                <button
+                                    onClick={() => toggleMute(track.id)}
                                     style={{
-                                        width: "16px",
-                                        height: "16px",
-                                        color: isMuted ? "var(--text-muted)" : track.color
-                                    }}
-                                />
-                                <span style={{
-                                    fontSize: "0.85rem",
-                                    fontWeight: 500,
-                                    color: isMuted ? "var(--text-muted)" : "var(--text-primary)"
-                                }}>
-                                    {track.label}
-                                </span>
-                            </div>
-
-                            {/* Waveform */}
-                            <div
-                                ref={(el) => { containerRefs.current[track.id] = el; }}
-                                style={{
-                                    flex: 1,
-                                    borderRadius: "8px",
-                                    overflow: "hidden",
-                                    background: "var(--bg-secondary)",
-                                    minHeight: "48px"
-                                }}
-                            >
-                                {!trackReady && (
-                                    <div style={{
-                                        height: "48px",
+                                        width: "32px",
+                                        height: "32px",
+                                        borderRadius: "8px",
                                         display: "flex",
                                         alignItems: "center",
-                                        justifyContent: "center"
-                                    }}>
-                                        <span style={{
-                                            fontSize: "0.75rem",
-                                            color: "var(--text-muted)"
-                                        }}>
-                                            Loading...
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
+                                        justifyContent: "center",
+                                        background: isMuted ? "var(--bg-secondary)" : `${track.color}20`,
+                                        color: isMuted ? "var(--text-muted)" : track.color,
+                                        border: "none",
+                                        cursor: "pointer",
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    {isMuted ? (
+                                        <VolumeX style={{ width: "16px", height: "16px" }} />
+                                    ) : (
+                                        <Volume2 style={{ width: "16px", height: "16px" }} />
+                                    )}
+                                </button>
 
-                            {/* Download */}
-                            <button
-                                onClick={() => downloadTrack(track.id, track.label)}
-                                style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    borderRadius: "8px",
+                                {/* Track Label */}
+                                <div style={{
                                     display: "flex",
                                     alignItems: "center",
-                                    justifyContent: "center",
-                                    background: "var(--bg-secondary)",
-                                    color: "var(--text-muted)",
-                                    border: "none",
-                                    cursor: "pointer",
+                                    gap: "10px",
+                                    minWidth: "180px",
                                     flexShrink: 0
-                                }}
-                            >
-                                <Download style={{ width: "16px", height: "16px" }} />
-                            </button>
+                                }}>
+                                    <TrackIcon
+                                        style={{
+                                            width: "16px",
+                                            height: "16px",
+                                            color: isMuted ? "var(--text-muted)" : track.color
+                                        }}
+                                    />
+                                    <span style={{
+                                        fontSize: "0.85rem",
+                                        fontWeight: 500,
+                                        color: isMuted ? "var(--text-muted)" : "var(--text-primary)"
+                                    }}>
+                                        {track.label}
+                                    </span>
+                                </div>
+
+                                {/* Waveform */}
+                                <div
+                                    ref={(el) => { containerRefs.current[track.id] = el; }}
+                                    style={{
+                                        flex: 1,
+                                        borderRadius: "8px",
+                                        overflow: "hidden",
+                                        background: "var(--bg-secondary)",
+                                        minHeight: "48px"
+                                    }}
+                                >
+                                    {!trackReady && (
+                                        <div style={{
+                                            height: "48px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center"
+                                        }}>
+                                            <span style={{
+                                                fontSize: "0.75rem",
+                                                color: "var(--text-muted)"
+                                            }}>
+                                                Loading...
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Download */}
+                                <button
+                                    onClick={() => downloadTrack(track.id, track.label)}
+                                    style={{
+                                        width: "32px",
+                                        height: "32px",
+                                        borderRadius: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        background: "var(--bg-secondary)",
+                                        color: "var(--text-muted)",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    <Download style={{ width: "16px", height: "16px" }} />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Right: Audio Identity Metadata */}
+                {audioMetadata && (
+                    <div style={{
+                        width: "260px",
+                        flexShrink: 0,
+                        padding: "16px",
+                        borderRadius: "12px",
+                        background: "var(--bg-tertiary)",
+                        border: "1px solid var(--glass-border)",
+                        alignSelf: "flex-start",
+                    }}>
+                        <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            marginBottom: "14px",
+                            paddingBottom: "10px",
+                            borderBottom: "1px solid var(--glass-border)",
+                        }}>
+                            <FileText style={{ width: "14px", height: "14px", color: "var(--ghost-primary)" }} />
+                            <span style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                color: "var(--text-secondary)"
+                            }}>
+                                Audio Identity
+                            </span>
                         </div>
-                    );
-                })}
+
+                        {audioMetadata.original_filename && (
+                            <div style={{ marginBottom: "12px" }}>
+                                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                                    File
+                                </div>
+                                <div style={{
+                                    fontSize: "0.75rem",
+                                    color: "var(--text-primary)",
+                                    fontWeight: 500,
+                                    wordBreak: "break-all",
+                                    lineHeight: 1.4,
+                                }}>
+                                    {audioMetadata.original_filename}
+                                </div>
+                            </div>
+                        )}
+
+                        {[
+                            { label: "Format", value: audioMetadata.format ? audioMetadata.format.toUpperCase() : null },
+                            { label: "Codec", value: audioMetadata.codec },
+                            { label: "Sample Rate", value: audioMetadata.sample_rate ? `${audioMetadata.sample_rate} Hz` : null },
+                            { label: "Channels", value: audioMetadata.channels === 1 ? "Mono" : audioMetadata.channels === 2 ? "Stereo" : audioMetadata.channels ? `${audioMetadata.channels} channels` : null },
+                            { label: "Bit Depth", value: audioMetadata.bit_depth ? `${audioMetadata.bit_depth}-bit` : null },
+                            { label: "File Size", value: audioMetadata.file_size_bytes ? `${(audioMetadata.file_size_bytes / (1024 * 1024)).toFixed(1)} MB` : null },
+                            { label: "Duration", value: audioDuration ? `${audioDuration.toFixed(1)}s` : null },
+                        ].filter(row => row.value).map(row => (
+                            <div key={row.label} style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "5px 0",
+                                borderBottom: "1px solid var(--glass-border)",
+                            }}>
+                                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                                    {row.label}
+                                </span>
+                                <span style={{
+                                    fontSize: "0.75rem",
+                                    color: "var(--text-primary)",
+                                    fontWeight: 500,
+                                    fontFamily: "monospace",
+                                }}>
+                                    {row.value}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Download All */}

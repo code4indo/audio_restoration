@@ -6,10 +6,13 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from huggingface_hub import HfApi, hf_hub_download
+from huggingface_hub import HfApi, login as hf_login
 from huggingface_hub.utils import HfHubHTTPError
 
+from logging_utils import get_logger
+
 router = APIRouter()
+logger = get_logger("audioghost.backend.auth", "auth.log")
 
 # Token storage path (use absolute path based on this file's location)
 BACKEND_DIR = Path(__file__).parent.parent
@@ -27,10 +30,54 @@ class AuthStatus(BaseModel):
 
 
 def get_saved_token() -> Optional[str]:
-    """Get saved HuggingFace token"""
+    """Resolve HuggingFace token from system sources (no manual input required).
+
+    Priority:
+    1. HF_TOKEN environment variable
+    2. HuggingFace CLI cache ($HF_HOME/token or ~/.cache/huggingface/token)
+    3. Local .hf_token file written by previous login
+    """
+    # 1. Explicit env var
+    token = os.environ.get("HF_TOKEN", "").strip()
+    if token:
+        return token
+
+    # 2. HuggingFace CLI cache
+    hf_home = os.environ.get("HF_HOME", "")
+    candidates = []
+    if hf_home:
+        candidates.append(Path(hf_home) / "token")
+    candidates.append(Path.home() / ".cache" / "huggingface" / "token")
+    for path in candidates:
+        if path.exists():
+            t = path.read_text().strip()
+            if t:
+                return t
+
+    # 3. Local .hf_token file
     if TOKEN_FILE.exists():
-        return TOKEN_FILE.read_text().strip()
-    return os.environ.get("HF_TOKEN")
+        t = TOKEN_FILE.read_text().strip()
+        if t:
+            return t
+
+    return None
+
+
+def ensure_authenticated():
+    """Login to HuggingFace using the embedded system token.
+    Called at startup so all downstream HF calls succeed automatically.
+    """
+    token = get_saved_token()
+    if token:
+        try:
+            hf_login(token=token, add_to_git_credential=False)
+            logger.info("Auto-authenticated using system token.", extra={"event": "auth.auto_login"})
+        except Exception as exc:
+            logger.warning(
+                "Auto-authentication failed: %s",
+                exc,
+                extra={"event": "auth.auto_login_failed"},
+            )
 
 
 def save_token(token: str):
