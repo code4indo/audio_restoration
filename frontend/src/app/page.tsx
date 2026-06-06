@@ -323,14 +323,13 @@ export default function Home() {
         {!audioUrl && !batchMode && (
           <div style={{ textAlign: "center", marginBottom: "48px" }}>
             <h1 style={{ fontSize: "3rem", fontWeight: 800, marginBottom: "16px" }}>
-              <span className="gradient-text">Audio Archive</span>{" "}
-              <span style={{ color: "var(--text-primary)" }}>Restoration</span>
+              <span className="gradient-text">SoundPrism</span>
             </h1>
             <p style={{ fontSize: "1.25rem", marginBottom: "8px", color: "var(--text-secondary)" }}>
-              AI-Powered Object-Oriented Audio Separation
+              AI-Powered Audio Separation & Restoration
             </p>
             <p style={{ color: "var(--text-muted)" }}>
-              Prioritize common archival needs such as isolating human speech or reducing analog transfer noise like tape hiss, hum, crackle, and static
+              Like a prism splits light into colors, SoundPrism separates mixed audio into individual sounds. Isolate vocals, extract instruments, remove noise with state-of-the-art AI.
             </p>
           </div>
         )}

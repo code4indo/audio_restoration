@@ -8,9 +8,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Audio Archive Restoration - AI-Powered Audio Separation",
-  description: "Separate any sound from audio using natural language. Remove vocals, extract instruments, eliminate background noise with state-of-the-art AI.",
-  keywords: ["audio separation", "AI", "vocal removal", "stem separation", "audio editing"],
+  title: "SoundPrism — AI Audio Separation & Restoration",
+  description: "Separate any sound from audio using natural language. Like a prism splits light into colors, SoundPrism splits audio into individual sounds with state-of-the-art AI.",
+  keywords: ["audio separation", "AI", "vocal removal", "stem separation", "audio editing", "sound isolation"],
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

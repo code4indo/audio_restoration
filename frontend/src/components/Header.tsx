@@ -1,6 +1,6 @@
 "use client";
 
-import { Sun, Moon, Clock, Server } from "lucide-react";
+import { Sun, Moon, Clock, Server, Triangle } from "lucide-react";
 
 interface HeaderProps {
     isDarkMode: boolean;
@@ -48,8 +48,8 @@ export default function Header({
                     title="Return to home"
                 >
                     <img
-                        src="/audioghost_logo.png"
-                        alt="Audio Archive Restoration Logo"
+                        src="/logo.png"
+                        alt="SoundPrism Logo"
                         style={{
                             width: "40px",
                             height: "40px",
@@ -58,10 +58,10 @@ export default function Header({
                     />
                     <div>
                         <h1 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--text-primary)" }}>
-                            Audio Archive <span className="gradient-text">Restoration</span>
+                            Sound<span className="gradient-text">Prism</span>
                         </h1>
                         <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                            v1.0 MVP
+                            AI Audio Separation
                         </p>
                     </div>
                 </div>
@@ -135,7 +135,7 @@ export default function Header({
                         <span>Admin</span>
                     </a>
 
-                    {/* HuggingFace status - always connected via system token */}
+                    {/* HuggingFace status */}
                     <div
                         style={{
                             display: "flex",
@@ -151,7 +151,7 @@ export default function Header({
                                 width: "8px",
                                 height: "8px",
                                 borderRadius: "50%",
-                                background: "var(--ghost-success)"
+                                background: "var(--prism-success)"
                             }}
                         />
                         <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>HF Connected</span>
@@ -160,5 +160,4 @@ export default function Header({
             </div>
         </header>
     );
-
 }

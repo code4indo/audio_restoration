@@ -1,44 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  /* Audio Archive Restoration - Archival Institution Colors */
-  --ghost-primary: #1E3A5F;
-  /* Deep Archive Blue - professional, trustworthy */
-  --ghost-secondary: #8B7355;
-  /* Warm Document Brown - historical documents */
-  --ghost-accent: #B8860B;
-  /* Muted Archival Gold - valuable artifacts */
-  --ghost-success: #2D5F4F;
-  /* Forest Green - preservation */
-  --ghost-warning: #D4A574;
-  /* Warm Beige - aging documents */
-  --ghost-error: #A63C3C;
-  /* Muted Red - alerting but professional */
+  /* SoundPrism - Audio Separation Brand Colors */
+  --prism-primary: #0EA5E9;
+  /* Sky Cyan - clarity, technology, precision */
+  --prism-secondary: #8B5CF6;
+  /* Violet - spectrum, separation, creativity */
+  --prism-accent: #F59E0B;
+  /* Amber - warmth, energy, highlight */
+  --prism-success: #10B981;
+  /* Emerald - success, clean result */
+  --prism-warning: #F59E0B;
+  /* Amber - caution */
+  --prism-error: #EF4444;
+  /* Red - error, alert */
 
-  /* Dark Theme - Professional Archival */
-  --bg-primary: #0F1419;
-  /* Deep charcoal - sophisticated */
-  --bg-secondary: #1A1F2E;
-  /* Dark blue-grey - institutional */
-  --bg-tertiary: #232B3C;
-  /* Muted navy - depth */
-  --bg-card: #1C2330;
-  /* Card background */
-  --bg-hover: #2A3447;
-  /* Hover state */
+  /* Backward compatibility aliases */
+  --ghost-primary: var(--prism-primary);
+  --ghost-secondary: var(--prism-secondary);
+  --ghost-accent: var(--prism-accent);
+  --ghost-success: var(--prism-success);
+  --ghost-warning: var(--prism-warning);
+  --ghost-error: var(--prism-error);
+
+  /* Dark Theme - Deep Space */
+  --bg-primary: #0B1120;
+  /* Deep navy space */
+  --bg-secondary: #111827;
+  /* Dark slate */
+  --bg-tertiary: #1E293B;
+  /* Slate panel */
+  --bg-card: #15202E;
+  /* Card surface */
+  --bg-hover: #2A3A4E;
+  /* Hover lift */
 
   /* Text Colors */
-  --text-primary: #E8E9ED;
-  /* Soft white - readable */
-  --text-secondary: #A8B2C1;
-  /* Muted blue-grey */
-  --text-muted: #6B7280;
-  /* Subtle grey */
+  --text-primary: #F1F5F9;
+  /* Bright white-blue */
+  --text-secondary: #94A3B8;
+  /* Muted slate */
+  --text-muted: #64748B;
+  /* Subtle slate */
 
-  /* Glassmorphism - Professional */
-  --glass-bg: rgba(28, 35, 48, 0.85);
-  --glass-border: rgba(184, 134, 11, 0.25);
-  /* Muted gold border */
+  /* Glassmorphism - Prism Style */
+  --glass-bg: rgba(17, 24, 39, 0.88);
+  --glass-border: rgba(14, 165, 233, 0.18);
+  /* Cyan-tinted border */
 }
 
 * {
@@ -59,25 +67,16 @@ body {
 }
 
 body.light-mode {
-  --bg-primary: #F5F3EF;
-  /* Warm off-white - aged paper */
-  --bg-secondary: #EBE8E1;
-  /* Light parchment */
-  --bg-tertiary: #DED9CE;
-  /* Soft beige */
+  --bg-primary: #F8FAFC;
+  --bg-secondary: #F1F5F9;
+  --bg-tertiary: #E2E8F0;
   --bg-card: #FFFFFF;
-  /* Clean white cards */
-  --bg-hover: #E4DFD4;
-  /* Hover - subtle warmth */
-  --text-primary: #1A1F2E;
-  /* Deep blue-grey - readable */
-  --text-secondary: #4A5568;
-  /* Medium grey */
-  --text-muted: #718096;
-  /* Light grey */
+  --bg-hover: #CBD5E1;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
   --glass-bg: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(184, 134, 11, 0.35);
-  /* Visible gold in light mode */
+  --glass-border: rgba(14, 165, 233, 0.25);
 }
 
 /* Custom Scrollbar */
@@ -91,12 +90,12 @@ body.light-mode {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--ghost-primary);
+  background: var(--prism-primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #7C3AED;
+  background: var(--prism-secondary);
 }
 
 /* Glassmorphism Card */
@@ -108,9 +107,9 @@ body.light-mode {
   border-radius: 16px;
 }
 
-/* Gradient Text */
+/* Gradient Text - Prism Spectrum */
 .gradient-text {
-  background: linear-gradient(135deg, var(--ghost-primary) 0%, var(--ghost-secondary) 50%, var(--ghost-accent) 100%);
+  background: linear-gradient(135deg, var(--prism-primary) 0%, var(--prism-secondary) 50%, var(--prism-accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -118,19 +117,16 @@ body.light-mode {
 
 /* Glow Effects */
 .glow-primary {
-  box-shadow: 0 0 20px rgba(30, 58, 95, 0.4);
-  /* Deep Archive Blue glow */
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.35);
 }
 
 .glow-secondary {
-  box-shadow: 0 0 20px rgba(139, 115, 85, 0.4);
-  /* Warm Document Brown glow */
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.35);
 }
 
 /* Button Styles */
 .btn-primary {
-  background: linear-gradient(135deg, var(--ghost-primary), #2C4A6C);
-  /* Deep archive blue gradient */
+  background: linear-gradient(135deg, var(--prism-primary), #0284C7);
   color: white;
   padding: 12px 24px;
   border-radius: 12px;
@@ -145,8 +141,7 @@ body.light-mode {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(30, 58, 95, 0.45);
-  /* Archive blue shadow */
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
 }
 
 .btn-primary:active {
@@ -169,7 +164,7 @@ body.light-mode {
 
 .btn-secondary:hover {
   background: var(--bg-hover);
-  border-color: var(--ghost-primary);
+  border-color: var(--prism-primary);
 }
 
 /* Input Styles */
@@ -185,8 +180,8 @@ body.light-mode {
 }
 
 .input-ghost:focus {
-  border-color: var(--ghost-primary);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  border-color: var(--prism-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
 }
 
 .input-ghost::placeholder {
@@ -211,33 +206,25 @@ body.light-mode {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--ghost-primary), var(--ghost-secondary));
-  /* Blue to brown gradient */
+  background: linear-gradient(90deg, var(--prism-primary), var(--prism-secondary));
   border-radius: 3px;
   transition: width 0.3s ease;
 }
 
 /* Animations */
 @keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(30, 58, 95, 0.4);
-    /* Deep Archive Blue */
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.35);
   }
-
   50% {
-    box-shadow: 0 0 40px rgba(30, 58, 95, 0.6);
+    box-shadow: 0 0 40px rgba(14, 165, 233, 0.55);
   }
 }
 
 @keyframes float {
-
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0);
   }
-
   50% {
     transform: translateY(-10px);
   }
@@ -247,9 +234,17 @@ body.light-mode {
   0% {
     background-position: -200% 0;
   }
-
   100% {
     background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -280,19 +275,19 @@ body.light-mode {
 }
 
 .stem-track:hover {
-  border-color: var(--ghost-primary);
+  border-color: var(--prism-primary);
 }
 
 .stem-track.original {
-  border-left: 3px solid var(--ghost-primary);
+  border-left: 3px solid #F59E0B;
 }
 
 .stem-track.ghost {
-  border-left: 3px solid var(--ghost-accent);
+  border-left: 3px solid #F472B6;
 }
 
 .stem-track.clean {
-  border-left: 3px solid var(--ghost-success);
+  border-left: 3px solid #10B981;
 }
 
 /* Quick Action Tags */
@@ -313,12 +308,11 @@ body.light-mode {
 .quick-tag:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--ghost-primary);
+  border-color: var(--prism-primary);
 }
 
 .quick-tag.selected {
-  background: linear-gradient(135deg, var(--ghost-primary), #2C4A6C);
-  /* Archive blue gradient */
+  background: linear-gradient(135deg, var(--prism-primary), #0284C7);
   color: white;
   border-color: transparent;
 }
@@ -335,17 +329,14 @@ body.light-mode {
 }
 
 .upload-zone:hover {
-  border-color: var(--ghost-accent);
-  /* Muted gold border */
-  background: rgba(184, 134, 11, 0.06);
-  /* Subtle gold tint */
+  border-color: var(--prism-primary);
+  background: rgba(14, 165, 233, 0.04);
 }
 
 .upload-zone.dragover {
-  border-color: var(--ghost-accent);
-  background: rgba(184, 134, 11, 0.12);
-  box-shadow: 0 0 30px rgba(184, 134, 11, 0.25);
-  /* Gold glow */
+  border-color: var(--prism-primary);
+  background: rgba(14, 165, 233, 0.08);
+  box-shadow: 0 0 30px rgba(14, 165, 233, 0.2);
 }
 
 /* Responsive */
